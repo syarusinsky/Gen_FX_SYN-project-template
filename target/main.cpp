@@ -140,7 +140,7 @@ int main(void)
 	LLPD::gpio_analog_setup( EFFECT2_ADC_PORT, EFFECT2_ADC_PIN );
 	LLPD::gpio_analog_setup( EFFECT3_ADC_PORT, EFFECT3_ADC_PIN );
 	LLPD::gpio_analog_setup( AUDIO_IN_PORT, AUDIO_IN_PIN );
-	LLPD::adc_init( ADC_CYCLES_PER_SAMPLE::CPS_2p5 );
+	LLPD::adc_init( ADC_CYCLES_PER_SAMPLE::CPS_61p5 );
 	LLPD::adc_set_channel_order( 4, EFFECT1_ADC_CHANNEL, EFFECT2_ADC_CHANNEL, EFFECT3_ADC_CHANNEL, AUDIO_IN_CHANNEL );
 	adcSetupComplete = true;
 	LLPD::usart_log( USART_NUM::USART_3, "adc initialized..." );
