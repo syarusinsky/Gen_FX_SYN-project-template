@@ -110,7 +110,7 @@ int main(void)
 	LLPD::usart_log( USART_NUM::USART_3, "I2C initialized..." );
 
 	// spi init (36MHz SPI2 source 18MHz clock)
-	LLPD::spi_master_init( SPI_NUM::SPI_2, SPI_BAUD_RATE::APB1CLK_DIV_BY_2, SPI_CLK_POL::LOW_IDLE, SPI_CLK_PHASE::FIRST,
+	LLPD::spi_master_init( SPI_NUM::SPI_2, SPI_BAUD_RATE::APB1CLK_DIV_BY_256, SPI_CLK_POL::LOW_IDLE, SPI_CLK_PHASE::FIRST,
 				SPI_DUPLEX::FULL, SPI_FRAME_FORMAT::MSB_FIRST, SPI_DATA_SIZE::BITS_8 );
 	LLPD::usart_log( USART_NUM::USART_3, "spi initialized..." );
 
@@ -171,6 +171,26 @@ int main(void)
 		LLPD::usart_log( USART_NUM::USART_3, "WARNING!!! eeproms failed verification..." );
 	}
 
+	// SD Card setup and test (SD Card should always go first for spi)
+	LLPD::gpio_output_setup( SDCARD_CS_PORT, SDCARD_CS_PIN, GPIO_PUPD::PULL_UP, GPIO_OUTPUT_TYPE::PUSH_PULL, GPIO_OUTPUT_SPEED::HIGH, false );
+	LLPD::gpio_output_set( SDCARD_CS_PORT, SDCARD_CS_PIN, true );
+	SDCard sdCard( SPI_NUM::SPI_2, SDCARD_CS_PORT, SDCARD_CS_PIN, true );
+	sdCard.initialize();
+	LLPD::usart_log( USART_NUM::USART_3, "sd card initialized..." );
+	// TODO comment the verification lines out if you're using the sd card for persistent memory
+	SharedData<uint8_t> sdCardValsToWrite = SharedData<uint8_t>::MakeSharedData( 3 );
+	sdCardValsToWrite[0] = 23; sdCardValsToWrite[1] = 87; sdCardValsToWrite[2] = 132;
+	sdCard.writeToMedia( sdCardValsToWrite, 54 );
+	SharedData<uint8_t> retVals3 = sdCard.readFromMedia( 3, 54 );
+	if ( retVals3[0] == 23 && retVals3[1] == 87 && retVals3[2] == 132 )
+	{
+		LLPD::usart_log( USART_NUM::USART_3, "sd card verified..." );
+	}
+	else
+	{
+		LLPD::usart_log( USART_NUM::USART_3, "WARNING!!! sd card failed verification..." );
+	}
+
 	// SRAM setup and test
 	std::vector<Sram_23K256_GPIO_Config> spiGpioConfigs;
 	spiGpioConfigs.emplace_back( SRAM1_CS_PORT, SRAM1_CS_PIN );
@@ -200,35 +220,13 @@ int main(void)
 		LLPD::usart_log( USART_NUM::USART_3, "WARNING!!! srams failed verification..." );
 	}
 
-	// SD Card setup and test TODO this currently isn't working correctly so it's been commented out
-	/*
-	LLPD::gpio_output_setup( SDCARD_CS_PORT, SDCARD_CS_PIN, GPIO_PUPD::NONE, GPIO_OUTPUT_TYPE::PUSH_PULL, GPIO_OUTPUT_SPEED::HIGH, false );
-	LLPD::gpio_output_set( SDCARD_CS_PORT, SDCARD_CS_PIN, true );
-	SDCard sdCard( SPI_NUM::SPI_2, SDCARD_CS_PORT, SDCARD_CS_PIN, true );
-	sdCard.initialize();
-	LLPD::usart_log( USART_NUM::USART_3, "sd card initialized..." );
-	// TODO comment the verification lines out if you're using the sd card for persistent memory
-	SharedData<uint8_t> sdCardValsToWrite = SharedData<uint8_t>::MakeSharedData( 3 );
-	sdCardValsToWrite[0] = 23; sdCardValsToWrite[1] = 87; sdCardValsToWrite[2] = 132;
-	sdCard.writeToMedia( sdCardValsToWrite, 54 );
-	SharedData<uint8_t> retVals3 = sdCard.readFromMedia( 3, 54 );
-	if ( retVals3[0] == 23 && retVals3[1] == 87 && retVals3[2] == 132 )
-	{
-		LLPD::usart_log( USART_NUM::USART_3, "sd card verified..." );
-	}
-	else
-	{
-		LLPD::usart_log( USART_NUM::USART_3, "WARNING!!! sd card failed verification..." );
-	}
-	*/
-
 	// display buffer
 	uint8_t displayBuffer[(SH1106_LCDWIDTH * SH1106_LCDHEIGHT) / 8] = { 0 };
 
 	// clear display buffer
 	for ( unsigned int byte = 0; byte < (SH1106_LCDHEIGHT * SH1106_LCDWIDTH) / 8; byte++ )
 	{
-		displayBuffer[byte] = 0x00;
+		displayBuffer[byte] = 0xFF;
 	}
 
 	// OLED setup
