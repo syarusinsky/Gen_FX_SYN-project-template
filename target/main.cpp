@@ -13,6 +13,9 @@
 
 // global variables
 volatile bool adcSetupComplete = false; // should be set to true after adc has been initialized
+constexpr unsigned int numSquareWaveSamples = 40;
+volatile unsigned int squareWaveCurrentSampleNum = 0;
+volatile uint16_t squareWaveBuffer[numSquareWaveSamples];
 
 // peripheral defines
 #define OP_AMP_PORT 		GPIO_PORT::A
@@ -150,46 +153,46 @@ int main(void)
 	LLPD::gpio_digital_input_setup( EFFECT2_BUTTON_PORT, EFFECT2_BUTTON_PIN, GPIO_PUPD::PULL_UP );
 
 	// EEPROM setup and test
-	std::vector<Eeprom_CAT24C64_AddressConfig> eepromAddressConfigs;
-	eepromAddressConfigs.emplace_back( EEPROM1_ADDRESS );
-	eepromAddressConfigs.emplace_back( EEPROM2_ADDRESS );
-	Eeprom_CAT24C64_Manager eeproms( I2C_NUM::I2C_2, eepromAddressConfigs );
-	// TODO comment the verification lines out if you're using the eeprom for persistent memory
-	SharedData<uint8_t> eepromValsToWrite = SharedData<uint8_t>::MakeSharedData( 3 );
-	eepromValsToWrite[0] = 64; eepromValsToWrite[1] = 23; eepromValsToWrite[2] = 17;
-	eeproms.writeToMedia( eepromValsToWrite, 45 );
-	eeproms.writeToMedia( eepromValsToWrite, 45 + Eeprom_CAT24C64::EEPROM_SIZE );
-	SharedData<uint8_t> eeprom1Verification = eeproms.readFromMedia( 3, 45 );
-	SharedData<uint8_t> eeprom2Verification = eeproms.readFromMedia( 3, 45 + Eeprom_CAT24C64::EEPROM_SIZE );
-	if ( eeprom1Verification[0] == 64 && eeprom1Verification[1] == 23 && eeprom1Verification[2] == 17 &&
-			eeprom2Verification[0] == 64 && eeprom2Verification[1] == 23 && eeprom2Verification[2] == 17 )
-	{
-		LLPD::usart_log( USART_NUM::USART_3, "eeproms verified..." );
-	}
-	else
-	{
-		LLPD::usart_log( USART_NUM::USART_3, "WARNING!!! eeproms failed verification..." );
-	}
+	// std::vector<Eeprom_CAT24C64_AddressConfig> eepromAddressConfigs;
+	// eepromAddressConfigs.emplace_back( EEPROM1_ADDRESS );
+	// eepromAddressConfigs.emplace_back( EEPROM2_ADDRESS );
+	// Eeprom_CAT24C64_Manager eeproms( I2C_NUM::I2C_2, eepromAddressConfigs );
+	// // TODO comment the verification lines out if you're using the eeprom for persistent memory
+	// SharedData<uint8_t> eepromValsToWrite = SharedData<uint8_t>::MakeSharedData( 3 );
+	// eepromValsToWrite[0] = 64; eepromValsToWrite[1] = 23; eepromValsToWrite[2] = 17;
+	// eeproms.writeToMedia( eepromValsToWrite, 45 );
+	// eeproms.writeToMedia( eepromValsToWrite, 45 + Eeprom_CAT24C64::EEPROM_SIZE );
+	// SharedData<uint8_t> eeprom1Verification = eeproms.readFromMedia( 3, 45 );
+	// SharedData<uint8_t> eeprom2Verification = eeproms.readFromMedia( 3, 45 + Eeprom_CAT24C64::EEPROM_SIZE );
+	// if ( eeprom1Verification[0] == 64 && eeprom1Verification[1] == 23 && eeprom1Verification[2] == 17 &&
+	// 		eeprom2Verification[0] == 64 && eeprom2Verification[1] == 23 && eeprom2Verification[2] == 17 )
+	// {
+	// 	LLPD::usart_log( USART_NUM::USART_3, "eeproms verified..." );
+	// }
+	// else
+	// {
+	// 	LLPD::usart_log( USART_NUM::USART_3, "WARNING!!! eeproms failed verification..." );
+	// }
 
 	// SD Card setup and test (SD Card should always go first for spi)
-	LLPD::gpio_output_setup( SDCARD_CS_PORT, SDCARD_CS_PIN, GPIO_PUPD::PULL_UP, GPIO_OUTPUT_TYPE::PUSH_PULL, GPIO_OUTPUT_SPEED::HIGH, false );
-	LLPD::gpio_output_set( SDCARD_CS_PORT, SDCARD_CS_PIN, true );
-	SDCard sdCard( SPI_NUM::SPI_2, SDCARD_CS_PORT, SDCARD_CS_PIN, true );
-	sdCard.initialize();
-	LLPD::usart_log( USART_NUM::USART_3, "sd card initialized..." );
-	// TODO comment the verification lines out if you're using the sd card for persistent memory
-	SharedData<uint8_t> sdCardValsToWrite = SharedData<uint8_t>::MakeSharedData( 3 );
-	sdCardValsToWrite[0] = 23; sdCardValsToWrite[1] = 87; sdCardValsToWrite[2] = 132;
-	sdCard.writeToMedia( sdCardValsToWrite, 54 );
-	SharedData<uint8_t> retVals3 = sdCard.readFromMedia( 3, 54 );
-	if ( retVals3[0] == 23 && retVals3[1] == 87 && retVals3[2] == 132 )
-	{
-		LLPD::usart_log( USART_NUM::USART_3, "sd card verified..." );
-	}
-	else
-	{
-		LLPD::usart_log( USART_NUM::USART_3, "WARNING!!! sd card failed verification..." );
-	}
+	// LLPD::gpio_output_setup( SDCARD_CS_PORT, SDCARD_CS_PIN, GPIO_PUPD::PULL_UP, GPIO_OUTPUT_TYPE::PUSH_PULL, GPIO_OUTPUT_SPEED::HIGH, false );
+	// LLPD::gpio_output_set( SDCARD_CS_PORT, SDCARD_CS_PIN, true );
+	// SDCard sdCard( SPI_NUM::SPI_2, SDCARD_CS_PORT, SDCARD_CS_PIN );
+	// sdCard.initialize();
+	// LLPD::usart_log( USART_NUM::USART_3, "sd card initialized..." );
+	// // TODO comment the verification lines out if you're using the sd card for persistent memory
+	// SharedData<uint8_t> sdCardValsToWrite = SharedData<uint8_t>::MakeSharedData( 3 );
+	// sdCardValsToWrite[0] = 23; sdCardValsToWrite[1] = 87; sdCardValsToWrite[2] = 132;
+	// sdCard.writeToMedia( sdCardValsToWrite, 54 );
+	// SharedData<uint8_t> retVals3 = sdCard.readFromMedia( 3, 54 );
+	// if ( retVals3[0] == 23 && retVals3[1] == 87 && retVals3[2] == 132 )
+	// {
+	// 	LLPD::usart_log( USART_NUM::USART_3, "sd card verified..." );
+	// }
+	// else
+	// {
+	// 	LLPD::usart_log( USART_NUM::USART_3, "WARNING!!! sd card failed verification..." );
+	// }
 
 	// SRAM setup and test
 	std::vector<Sram_23K256_GPIO_Config> spiGpioConfigs;
@@ -243,6 +246,19 @@ int main(void)
 
 	LLPD::usart_log( USART_NUM::USART_3, "Gen_FX_SYN setup complete, entering while loop -------------------------------" );
 
+	// create audio buffer of 1KHz square wave
+	for ( unsigned int sampleNum = 0; sampleNum < numSquareWaveSamples / 2; sampleNum++ )
+	{
+		if ( sampleNum < numSquareWaveSamples )
+		{
+			squareWaveBuffer[sampleNum] = 4095;
+		}
+		else
+		{
+			squareWaveBuffer[sampleNum] = 0;
+		}
+	}
+
 	while ( true )
 	{
 		if ( ! LLPD::gpio_input_get(EFFECT1_BUTTON_PORT, EFFECT1_BUTTON_PIN) )
@@ -267,6 +283,9 @@ extern "C" void TIM6_DAC_IRQHandler (void)
 	{
 		if ( adcSetupComplete )
 		{
+			// LLPD::dac_send( squareWaveBuffer[squareWaveCurrentSampleNum] );
+			// squareWaveCurrentSampleNum = ( squareWaveCurrentSampleNum + 1 ) % numSquareWaveSamples;
+
 			LLPD::adc_perform_conversion_sequence();
 			uint16_t adcVal = LLPD::adc_get_channel_value( ADC_CHANNEL::CHAN_4 );
 
