@@ -286,8 +286,8 @@ extern "C" void TIM6_DAC_IRQHandler (void)
 			// LLPD::dac_send( squareWaveBuffer[squareWaveCurrentSampleNum] );
 			// squareWaveCurrentSampleNum = ( squareWaveCurrentSampleNum + 1 ) % numSquareWaveSamples;
 
-			LLPD::adc_perform_conversion_sequence();
 			uint16_t adcVal = LLPD::adc_get_channel_value( ADC_CHANNEL::CHAN_4 );
+			LLPD::adc_perform_conversion_sequence(); // tell dma to fetch next value
 
 			LLPD::dac_send( adcVal );
 		}
