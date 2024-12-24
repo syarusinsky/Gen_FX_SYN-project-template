@@ -13,9 +13,9 @@
 
 // global variables
 volatile bool adcSetupComplete = false; // should be set to true after adc has been initialized
-constexpr unsigned int numSquareWaveSamples = 40;
+constexpr unsigned int numSquareWaveSamples = 40; // 1kHz square wave
 volatile unsigned int squareWaveCurrentSampleNum = 0;
-volatile uint16_t squareWaveBuffer[numSquareWaveSamples];
+volatile uint16_t squareWaveBuffer[numSquareWaveSamples * 2]; // x2 since we want double buffered output
 
 // peripheral defines
 #define OP_AMP_PORT 		GPIO_PORT::A
@@ -144,7 +144,7 @@ int main(void)
 	LLPD::gpio_analog_setup( EFFECT3_ADC_PORT, EFFECT3_ADC_PIN );
 	LLPD::gpio_analog_setup( AUDIO_IN_PORT, AUDIO_IN_PIN );
 	LLPD::adc_init( ADC_CYCLES_PER_SAMPLE::CPS_61p5 );
-	LLPD::adc_set_channel_order( 4, EFFECT1_ADC_CHANNEL, EFFECT2_ADC_CHANNEL, EFFECT3_ADC_CHANNEL, AUDIO_IN_CHANNEL );
+	LLPD::adc_set_channel_order( true, 4, EFFECT1_ADC_CHANNEL, EFFECT2_ADC_CHANNEL, EFFECT3_ADC_CHANNEL, AUDIO_IN_CHANNEL );
 	adcSetupComplete = true;
 	LLPD::usart_log( USART_NUM::USART_3, "adc initialized..." );
 
@@ -251,11 +251,13 @@ int main(void)
 	{
 		if ( sampleNum < numSquareWaveSamples )
 		{
-			squareWaveBuffer[sampleNum] = 4095;
+			squareWaveBuffer[sampleNum] 				= 4095;
+			squareWaveBuffer[sampleNum + numSquareWaveSamples] 	= 4095;
 		}
 		else
 		{
-			squareWaveBuffer[sampleNum] = 0;
+			squareWaveBuffer[sampleNum] 				= 0;
+			squareWaveBuffer[sampleNum + numSquareWaveSamples] 	= 0;
 		}
 	}
 
@@ -284,12 +286,25 @@ extern "C" void TIM6_DAC_IRQHandler (void)
 		if ( adcSetupComplete )
 		{
 			// LLPD::dac_send( squareWaveBuffer[squareWaveCurrentSampleNum] );
-			// squareWaveCurrentSampleNum = ( squareWaveCurrentSampleNum + 1 ) % numSquareWaveSamples;
+			// squareWaveCurrentSampleNum = ( squareWaveCurrentSampleNum + 1 ) % ( numSquareWaveSamples * 2 );
+
+			// uint16_t adcVal = LLPD::adc_get_channel_value( ADC_CHANNEL::CHAN_4 );
+			// LLPD::adc_perform_conversion_sequence(); // tell dma to fetch next value
+			// LLPD::dac_send( adcVal );
+
+			// TODO new thing to do here, grab the adc value, start the adc dma conversion, the dma trigger for the dac is tim6,
+			// so this should occur after (or before) the dac send automatically:
+
+			// TODO even newer thing, we should disable the tim6 interrupts, the dac should send values and the adc should
+			// replace them right after, once the adc is past the bounds of the buffer, the app code should fill the
+			// buffer that just had it's values replaced by the adc
+			//
+			// since the adc converts multiple values though, we need another dma to move just the audio samples
 
 			uint16_t adcVal = LLPD::adc_get_channel_value( ADC_CHANNEL::CHAN_4 );
-			LLPD::adc_perform_conversion_sequence(); // tell dma to fetch next value
-
-			LLPD::dac_send( adcVal );
+			squareWaveBuffer[squareWaveCurrentSampleNum] = adcVal;
+			squareWaveCurrentSampleNum = ( squareWaveCurrentSampleNum + 1 ) % ( numSquareWaveSamples * 2 );
+			LLPD::dac_send( squareWaveBuffer[squareWaveCurrentSampleNum] );
 		}
 	}
 
