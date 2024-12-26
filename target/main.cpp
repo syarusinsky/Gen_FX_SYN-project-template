@@ -144,7 +144,8 @@ int main(void)
 	LLPD::gpio_analog_setup( EFFECT3_ADC_PORT, EFFECT3_ADC_PIN );
 	LLPD::gpio_analog_setup( AUDIO_IN_PORT, AUDIO_IN_PIN );
 	LLPD::adc_init( ADC_CYCLES_PER_SAMPLE::CPS_61p5 );
-	LLPD::adc_set_channel_order( true, 4, EFFECT1_ADC_CHANNEL, EFFECT2_ADC_CHANNEL, EFFECT3_ADC_CHANNEL, AUDIO_IN_CHANNEL );
+	LLPD::adc_set_channel_order( true, 4, AUDIO_IN_CHANNEL, (uint32_t*) squareWaveBuffer, numSquareWaveSamples * 2,
+					EFFECT1_ADC_CHANNEL, EFFECT2_ADC_CHANNEL, EFFECT3_ADC_CHANNEL, AUDIO_IN_CHANNEL );
 	adcSetupComplete = true;
 	LLPD::usart_log( USART_NUM::USART_3, "adc initialized..." );
 
@@ -301,8 +302,8 @@ extern "C" void TIM6_DAC_IRQHandler (void)
 			//
 			// since the adc converts multiple values though, we need another dma to move just the audio samples
 
-			uint16_t adcVal = LLPD::adc_get_channel_value( ADC_CHANNEL::CHAN_4 );
-			squareWaveBuffer[squareWaveCurrentSampleNum] = adcVal;
+			// uint16_t adcVal = LLPD::adc_get_channel_value( ADC_CHANNEL::CHAN_4 );
+			// squareWaveBuffer[squareWaveCurrentSampleNum] = adcVal;
 			squareWaveCurrentSampleNum = ( squareWaveCurrentSampleNum + 1 ) % ( numSquareWaveSamples * 2 );
 			LLPD::dac_send( squareWaveBuffer[squareWaveCurrentSampleNum] );
 		}
