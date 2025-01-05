@@ -127,7 +127,7 @@ int main(void)
 
 	// DAC setup
 	// LLPD::dac_init( true );
-	LLPD::dac_init_use_dma( true, numSquareWaveSamples * 2, (uint16_t*) squareWaveBuffer );
+	LLPD::dac_init_use_dma( true, numSquareWaveSamples * 2, (uint16_t*) adcBuffer );
 	LLPD::usart_log( USART_NUM::USART_3, "dac initialized..." );
 
 	// Op Amp setup
@@ -271,44 +271,46 @@ int main(void)
 
 	bool buffer1Filled = true; // if buffer 1 isn't filled, buffer 2 is filled, and vice versa
 
-	// LLPD::tim6_counter_disable_interrupts();
+	LLPD::tim6_counter_disable_interrupts();
 
 	while ( true )
 	{
-		if ( ! LLPD::gpio_input_get(EFFECT1_BUTTON_PORT, EFFECT1_BUTTON_PIN) )
-		{
-			LLPD::usart_log( USART_NUM::USART_3, "BUTTON 1 PRESSED" );
-		}
-
-		if ( ! LLPD::gpio_input_get(EFFECT2_BUTTON_PORT, EFFECT2_BUTTON_PIN) )
-		{
-			LLPD::usart_log( USART_NUM::USART_3, "BUTTON 2 PRESSED" );
-		}
-
-		LLPD::usart_log_int( USART_NUM::USART_3, "POT 1 VALUE: ", LLPD::adc_get_channel_value(EFFECT1_ADC_CHANNEL) );
-		LLPD::usart_log_int( USART_NUM::USART_3, "POT 2 VALUE: ", LLPD::adc_get_channel_value(EFFECT2_ADC_CHANNEL) );
-		LLPD::usart_log_int( USART_NUM::USART_3, "POT 3 VALUE: ", LLPD::adc_get_channel_value(EFFECT3_ADC_CHANNEL) );
-
-		// if ( buffer1Filled && LLPD::dac_dma_get_num_transfers_left() < numSquareWaveSamples )
+		// if ( ! LLPD::gpio_input_get(EFFECT1_BUTTON_PORT, EFFECT1_BUTTON_PIN) )
 		// {
-		// 	// fill buffer 2
-		// 	for ( unsigned int sample = 0; sample < numSquareWaveSamples; sample++ )
-		// 	{
-		// 		squareWaveBuffer[numSquareWaveSamples + sample] = adcBuffer[numSquareWaveSamples + sample];
-		// 	}
-
-		// 	buffer1Filled = false;
+		// 	LLPD::usart_log( USART_NUM::USART_3, "BUTTON 1 PRESSED" );
 		// }
-		// else if ( !buffer1Filled && LLPD::dac_dma_get_num_transfers_left() >= numSquareWaveSamples )
+
+		// if ( ! LLPD::gpio_input_get(EFFECT2_BUTTON_PORT, EFFECT2_BUTTON_PIN) )
 		// {
-		// 	// fill buffer 1
-		// 	for ( unsigned int sample = 0; sample < numSquareWaveSamples; sample++ )
-		// 	{
-		// 		squareWaveBuffer[sample] = adcBuffer[sample];
-		// 	}
-
-		// 	buffer1Filled = true;
+		// 	LLPD::usart_log( USART_NUM::USART_3, "BUTTON 2 PRESSED" );
 		// }
+
+		// LLPD::usart_log_int( USART_NUM::USART_3, "POT 1 VALUE: ", LLPD::adc_get_channel_value(EFFECT1_ADC_CHANNEL) );
+		// LLPD::usart_log_int( USART_NUM::USART_3, "POT 2 VALUE: ", LLPD::adc_get_channel_value(EFFECT2_ADC_CHANNEL) );
+		// LLPD::usart_log_int( USART_NUM::USART_3, "POT 3 VALUE: ", LLPD::adc_get_channel_value(EFFECT3_ADC_CHANNEL) );
+
+		const unsigned int numDacTransfersLeft = LLPD::dac_dma_get_num_transfers_left();
+
+		if ( buffer1Filled && numDacTransfersLeft < numSquareWaveSamples )
+		{
+			// fill buffer 2
+			for ( unsigned int sample = 0; sample < numSquareWaveSamples; sample++ )
+			{
+				adcBuffer[numSquareWaveSamples + sample] += squareWaveBuffer[numSquareWaveSamples + sample] / 2;
+			}
+
+			buffer1Filled = false;
+		}
+		else if ( !buffer1Filled && numDacTransfersLeft >= numSquareWaveSamples )
+		{
+			// fill buffer 1
+			for ( unsigned int sample = 0; sample < numSquareWaveSamples; sample++ )
+			{
+				adcBuffer[sample] += squareWaveBuffer[sample] / 2;
+			}
+
+			buffer1Filled = true;
+		}
 	}
 }
 
@@ -318,10 +320,10 @@ extern "C" void TIM6_DAC_IRQHandler (void)
 	{
 		if ( adcSetupComplete )
 		{
-			uint16_t adcVal = LLPD::adc_get_channel_value( ADC_CHANNEL::CHAN_4 );
-			squareWaveCurrentSampleNum = ( squareWaveCurrentSampleNum + 1 ) % ( numSquareWaveSamples * 2 );
-			LLPD::dac_send( squareWaveBuffer[squareWaveCurrentSampleNum] );
-			squareWaveBuffer[squareWaveCurrentSampleNum] = adcVal;
+			// uint16_t adcVal = LLPD::adc_get_channel_value( ADC_CHANNEL::CHAN_4 );
+			// squareWaveCurrentSampleNum = ( squareWaveCurrentSampleNum + 1 ) % ( numSquareWaveSamples * 2 );
+			// LLPD::dac_send( squareWaveBuffer[squareWaveCurrentSampleNum] );
+			// squareWaveBuffer[squareWaveCurrentSampleNum] = adcBuffer[squareWaveCurrentSampleNum];
 		}
 	}
 
