@@ -90,7 +90,7 @@ void disableUnusedPins()
 int main(void)
 {
 	// set system clock to PLL with HSE (16MHz / 2) as input, so 72MHz system clock speed
-	LLPD::rcc_clock_setup( RCC_CLOCK_SOURCE::EXTERNAL, true, RCC_PLL_MULTIPLY::BY_8, SYS_CLOCK_FREQUENCY );
+	LLPD::rcc_clock_setup( RCC_CLOCK_SOURCE::EXTERNAL, true, RCC_PLL_MULTIPLY::BY_9, SYS_CLOCK_FREQUENCY );
 
 	// prescale APB1 by 2, since the maximum clock speed is 36MHz
 	LLPD::rcc_set_periph_clock_prescalers( RCC_AHB_PRES::BY_1, RCC_APB1_PRES::AHB_BY_2, RCC_APB2_PRES::AHB_BY_1 );
@@ -272,6 +272,8 @@ int main(void)
 	bool buffer1Filled = true; // if buffer 1 isn't filled, buffer 2 is filled, and vice versa
 
 	LLPD::tim6_counter_disable_interrupts();
+	LLPD::dac_dma_start();
+	LLPD::adc_dma_start();
 
 	while ( true )
 	{
@@ -301,7 +303,7 @@ int main(void)
 
 			buffer1Filled = false;
 		}
-		else if ( !buffer1Filled && numDacTransfersLeft >= numSquareWaveSamples )
+		else if ( ! buffer1Filled && numDacTransfersLeft >= numSquareWaveSamples )
 		{
 			// fill buffer 1
 			for ( unsigned int sample = 0; sample < numSquareWaveSamples; sample++ )
